@@ -1,12 +1,12 @@
 import os
+import time
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
 load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 client = genai.Client(api_key=api_key)
-
-from google.genai import types
 
 MODEL = "gemini-3.6-flash"
 
@@ -141,18 +141,8 @@ Para solicitar uma troca ou devolução, o cliente deve ter, sempre que possíve
 
 A nota fiscal é importante para comprovar a compra e facilitar a localização do pedido.
 
-Não diga automatica
-
+Não diga automaticamente que o cliente perdeu o direito à troca ou devolução apenas por não ter a nota fiscal em mãos — oriente-o a entrar em contato com a Miau & Au para verificar alternativas de comprovação da compra.
 """
-
-context = [
-    types.Content(role="user", parts=[types.Part(text=system_prompt)]),
-    types.Content(role="model", parts=[types.Part(text="Entendido! Estou pronto para atender.")]),
-]
-
-def get_response(user_input, context):
-    context.append(types.Content(role="user", parts=[types.Part(text=user_input)]))
-    import time
 
 def chamar_gemini(context):
     for tentativa in range(3):
@@ -168,9 +158,6 @@ def chamar_gemini(context):
                 time.sleep(3)
             else:
                 raise e
-            
-    context.append(types.Content(role="model", parts=[types.Part(text=response.text)]))
-    return response.text
 
 def run_bot():
     context = [
@@ -187,11 +174,7 @@ def run_bot():
         user_input = input(f"Você (pergunta {perguntas_respondidas + 1}/3): ")
 
         context.append(types.Content(role="user", parts=[types.Part(text=user_input)]))
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=context,
-            config=types.GenerateContentConfig(temperature=0.3)
-        )
+        response = chamar_gemini(context)
         resposta = response.text
         context.append(types.Content(role="model", parts=[types.Part(text=resposta)]))
 
@@ -200,14 +183,11 @@ def run_bot():
 
     prompt_resumo = "Faça um breve resumo de tudo que você respondeu nesta conversa, listando as 3 perguntas e o essencial de cada resposta."
     context.append(types.Content(role="user", parts=[types.Part(text=prompt_resumo)]))
-    resumo = client.models.generate_content(
-        model=MODEL,
-        contents=context,
-        config=types.GenerateContentConfig(temperature=0.3)
-    ).text
+    resumo = chamar_gemini(context).text
 
     print("📋 Resumo da conversa:")
     print(resumo)
     print("\nAtendimento encerrado. Obrigado por escolher a Miau & Au! 🐾")
 
-run_bot()
+if __name__ == "__main__":
+    run_bot()
